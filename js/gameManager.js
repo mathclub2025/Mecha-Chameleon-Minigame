@@ -4,7 +4,7 @@ import { CONFIG, SPAWN_POINTS, MATHEMATICAL_SAGES } from './config.js';
 import { CharacterFactory } from './characters.js';
 import { CamouflageManager } from './camouflage.js';
 import { audioManager } from './audio.js';
-import { saveScore, getTopScores, getLeaderboardData, exportRecordsToCSV } from './firebaseService.js';
+import { saveScore, getTopScores, getLeaderboardData, saveLocalResultJSON } from './firebaseService.js';
 
 export class GameManager {
     constructor(scene, camera, player, ui, environment) {
@@ -110,12 +110,7 @@ export class GameManager {
             });
         }
 
-        const btnExportCsv = document.getElementById('btn-export-csv');
-        if (btnExportCsv) {
-            btnExportCsv.addEventListener('click', () => {
-                exportRecordsToCSV();
-            });
-        }
+
     }
 
     // Enter simulated loading phase
@@ -371,6 +366,11 @@ export class GameManager {
     // Frame update state loop
     update(delta, elapsed) {
         if (this.state === 'PLAYING') {
+            // Freeze timer countdown and gameplay updates when paused (pointer lock unlocked)
+            if (!this.player.controls.isLocked) {
+                return;
+            }
+
             // Count down timer
             const oldSec = Math.floor(this.timeRemaining);
             this.timeRemaining -= delta;
@@ -515,6 +515,19 @@ export class GameManager {
             } else {
                 this.ui.setSyncStatus("Score saved to Firebase successfully!", true);
             }
+
+            // Always save JSON file directly to local 'results/' folder on disk
+            saveLocalResultJSON({
+                name: this.playerName,
+                number: this.playerNumber,
+                score: this.score,
+                found: foundCount,
+                total: CONFIG.chameleonsToSpawn,
+                accuracy: accuracy,
+                timeTaken: timeTaken,
+                timeRemaining: this.timeRemaining,
+                timestamp: savedRecordTimestamp || new Date().toISOString()
+            });
         } catch (err) {
             console.error("Score save error:", err);
             this.ui.setSyncStatus("Error saving to Firebase", false);

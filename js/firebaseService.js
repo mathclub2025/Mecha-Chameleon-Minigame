@@ -177,58 +177,56 @@ export async function getLeaderboardData({ limitCount = 10, currentPlayerName = 
 }
 
 /**
- * Export all local player records as an Excel-compatible CSV file download
+ * Save game result JSON file to local results/ folder on disk
  */
-export function exportRecordsToCSV() {
+export async function saveLocalResultJSON(data) {
+    const rawName = data.name || data.playerName || 'Agent';
+    const safeName = rawName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}-${String(now.getSeconds()).padStart(2,'0')}`;
+    const fileName = `${safeName}-${timeStr}.json`;
+
+    const payload = {
+        playerName: rawName,
+        playerNumber: data.number || "",
+        score: data.score || 0,
+        found: data.found || 0,
+        total: data.total || 8,
+        accuracy: data.accuracy !== undefined ? `${(data.accuracy * 100).toFixed(0)}%` : "100%",
+        timeTaken: data.timeTaken || 0,
+        timeRemaining: data.timeRemaining || 0,
+        timestamp: data.timestamp || new Date().toISOString()
+    };
+
+    // 1. Post to Vite dev server API to write directly to results/ folder on disk
     try {
-        const allRecords = JSON.parse(localStorage.getItem(LOCAL_ALL_RECORDS_KEY) || '[]');
-        const cachedLeaderboard = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
-        
-        // Combine records, removing duplicate timestamps if any
-        const recordsMap = new Map();
-        [...allRecords, ...cachedLeaderboard].forEach(r => {
-            if (r.timestamp) recordsMap.set(r.timestamp, r);
-            else recordsMap.set(JSON.stringify(r), r);
+        const response = await fetch('/api/save-result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
-
-        const records = Array.from(recordsMap.values());
-
-        if (records.length === 0) {
-            alert("No local player records found to export yet. Play a game round first!");
-            return false;
+        if (response.ok) {
+            console.log(`[Results System] Successfully saved result JSON to results/${fileName}`);
+            return true;
         }
+    } catch (e) {
+        console.warn("[Results System] Dev server API unavailable, falling back to browser download:", e);
+    }
 
-        // CSV Headers
-        const headers = ["Name", "Phone / Reg No", "Score", "Symbols Found", "Accuracy (%)", "Time Taken (s)", "Timestamp"];
-        const csvRows = [headers.join(",")];
-
-        records.forEach(r => {
-            const row = [
-                `"${(r.name || 'Anonymous').replace(/"/g, '""')}"`,
-                `"${(r.number || '').replace(/"/g, '""')}"`,
-                r.score || 0,
-                r.found !== undefined ? r.found : 0,
-                `${r.accuracy !== undefined ? r.accuracy : 0}%`,
-                r.timeTaken || 0,
-                `"${(r.timestamp || '').replace(/"/g, '""')}"`
-            ];
-            csvRows.push(row.join(","));
-        });
-
-        const csvString = csvRows.join("\n");
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    // 2. Fallback: Trigger direct browser download named playername-time.json
+    try {
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `Mecha_Chameleon_Players_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.href = url;
+        link.download = fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         return true;
     } catch (e) {
-        console.error("CSV Export error:", e);
-        alert("Failed to export player records: " + e.message);
+        console.error("[Results System] Browser JSON download fallback failed:", e);
         return false;
     }
 }
