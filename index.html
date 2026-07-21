@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mecha Chameleon: Find Them | Maths Club Expo 26</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for school themed look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Architects+Daughter&display=swap" rel="stylesheet">
+    
+    <!-- ES Module Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- 3D Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Crosshair for First Person Mode -->
+    <div id="crosshair" class="hidden">
+        <div class="dot"></div>
+        <div class="ring"></div>
+    </div>
+
+    <!-- Screen 1: Title / Start Screen -->
+    <div id="screen-start" class="screen">
+        <div class="start-screen-wrapper">
+            <!-- Left Side Panel: 4 Vertical Preview Symbols (1-4) -->
+            <div class="side-preview-panel glass">
+                <div class="side-preview-title">TARGETS (1-4)</div>
+                <div class="side-canvas-container">
+                    <canvas id="preview-canvas-left"></canvas>
+                    <div class="side-preview-labels">
+                        <div class="side-label-slot"><span class="p-lbl">Infinity</span></div>
+                        <div class="side-label-slot"><span class="p-lbl">Kappa</span></div>
+                        <div class="side-label-slot"><span class="p-lbl">Theta</span></div>
+                        <div class="side-label-slot"><span class="p-lbl">Sigma</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Main Panel -->
+            <div class="panel glass start-panel">
+                <button id="btn-open-leaderboard" class="icon-btn-top-right" title="View Leaderboard" aria-label="Leaderboard">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                        <path d="M4 22h16"></path>
+                        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+                        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+                        <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path>
+                    </svg>
+                </button>
+                <div class="math-decor-top">\[ \nabla \times \mathbf{E} = -\frac{\partial \mathbf{B}}{\partial t} \quad \sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6} \]</div>
+                <h1 class="glitch-text" data-text="MECHA CHAMELEON">MECHA CHAMELEON</h1>
+                <h2 class="sub-title">FIND THEM</h2>
+                
+                <div class="story-box">
+                    <p class="story-text" style="text-align: center; margin-bottom: 0;">
+                        Find <span class="highlight">8 Mecha Chameleons</span> before the 45-second timer runs out.
+                    </p>
+                </div>
+
+                <div class="instructions-box">
+                    <h3>SYSTEM CONTROLS</h3>
+                    <div class="controls-grid">
+                        <div class="control-item"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> Move</div>
+                        <div class="control-item"><span class="key">SPACE</span> Jump</div>
+                        <div class="control-item"><span class="key">MOUSE</span> Look</div>
+                        <div class="control-item"><span class="key">SHIFT</span> Sprint</div>
+                        <div class="control-item"><span class="key">L-CLICK</span> Scan / Click</div>
+                    </div>
+                </div>
+
+                <!-- Player Registration Form -->
+                <div class="player-form-box">
+                    <div class="form-title">ENTER AGENT REGISTRATION</div>
+                    <div class="form-row">
+                        <input type="text" id="input-player-name" class="chalk-input" placeholder="Player Name *" required autocomplete="off">
+                        <input type="tel" id="input-player-number" class="chalk-input" placeholder="Phone / Reg No. (Optional)" autocomplete="off">
+                    </div>
+                    <div id="start-form-error" class="form-error-msg hidden">Please enter your Name before initializing.</div>
+                </div>
+
+                <button id="btn-start" class="btn-primary">INITIALIZE SIMULATION</button>
+                <div class="math-decor-bottom">Maths Club Expo '26</div>
+            </div>
+
+            <!-- Right Side Panel: 4 Vertical Preview Symbols (5-8) -->
+            <div class="side-preview-panel glass">
+                <div class="side-preview-title">TARGETS (5-8)</div>
+                <div class="side-canvas-container">
+                    <canvas id="preview-canvas-right"></canvas>
+                    <div class="side-preview-labels">
+                        <div class="side-label-slot"><span class="p-lbl">Pi</span></div>
+                        <div class="side-label-slot"><span class="p-lbl">Delta</span></div>
+                        <div class="side-label-slot"><span class="p-lbl">Omega</span></div>
+                        <div class="side-label-slot"><span class="p-lbl">Lambda</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 5: Main Menu Leaderboard Modal Popover -->
+    <div id="modal-leaderboard" class="screen hidden" style="z-index: 200;">
+        <div class="panel glass leaderboard-modal-panel">
+            <button id="btn-close-leaderboard" class="modal-close-btn" aria-label="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <h2 class="leaderboard-title" style="font-size: 1.25rem; margin-bottom: 12px; color: var(--neon-gold); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--neon-gold)" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path></svg>
+                TOP AGENTS LEADERBOARD
+            </h2>
+            <div class="leaderboard-table-container modal-table-container">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>NAME</th>
+                            <th>SCORE</th>
+                            <th>ACC.</th>
+                            <th>TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-leaderboard-rows">
+                        <tr><td colspan="5" class="lb-loading">Loading top scores...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions-row" style="margin-top: 14px; display: flex; gap: 10px;">
+                <button id="btn-export-csv" class="btn-secondary" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 0.85rem;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    EXPORT TO EXCEL
+                </button>
+                <button id="btn-modal-close-bottom" class="btn-primary" style="flex: 1; padding: 10px; font-size: 0.85rem;">CLOSE LEADERBOARD</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 2: Loading / Initialization Screen -->
+    <div id="screen-loading" class="screen hidden">
+        <div class="panel glass loading-panel">
+            <h2 class="loading-title">ADAPTIVE CAMOUFLAGE INITIALIZING...</h2>
+            <div class="loading-sub">Generating Room & Spawning Hiding Points</div>
+            
+            <div class="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+            
+            <div class="console-log" id="loading-console">
+                <div>> Booting systems... OK</div>
+                <div>> Initializing physics matrices... OK</div>
+                <div>> Establishing PointerLock... PENDING</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 3: Playing HUD -->
+    <div id="hud" class="hidden">
+        <!-- Top Left: Status Indicators -->
+        <div class="hud-left glass">
+            <div class="hud-item">
+                <span class="label">SYMBOLS FOUND:</span>
+                <span class="value" id="hud-found">0 / 8</span>
+            </div>
+        </div>
+
+        <!-- Top Right: Timer & Score -->
+        <div class="hud-right glass">
+            <div class="hud-item timer-item">
+                <span class="label">TIME:</span>
+                <span class="value countdown" id="hud-timer">45.0s</span>
+            </div>
+            <div class="hud-item">
+                <span class="label">SCORE:</span>
+                <span class="value" id="hud-score">0000</span>
+            </div>
+        </div>
+
+        <!-- Bottom Left: Warnings & Alerts -->
+        <div id="hud-alert" class="hud-alert-box hidden">
+            <span id="hud-alert-text">TARGET FOUND (+100 PTS)</span>
+        </div>
+
+        <!-- Lock Mouse Prompt (shows when pointer lock is lost during play) -->
+        <div id="pointer-lock-prompt" class="hidden">
+            <div class="prompt-box glass">
+                <p>SIMULATION PAUSED</p>
+                <p class="sub-prompt">Click inside the screen to resume controls</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post-Game Free Roam Action Button overlay -->
+    <div id="post-game-overlay" class="hidden">
+        <div class="post-game-box glass">
+            <h2 id="post-game-title">SIMULATION COMPLETE</h2>
+            <p id="post-game-desc">Walk around to check how they looked! Press ESC to unlock mouse & click below to wrap up.</p>
+            <button id="btn-show-results" class="btn-primary" style="margin-top: 5px; width: 100%;">SHOW RESULTS</button>
+        </div>
+    </div>
+
+    <!-- Screen 4: End / Results Screen -->
+    <div id="screen-results" class="screen hidden">
+        <div class="panel glass results-panel">
+            <h1 id="results-headline" class="results-title win">SIMULATION COMPLETE</h1>
+            <h2 id="results-status" class="results-subtitle">ALL TARGETS NEUTRALIZED</h2>
+
+            <div class="results-body-grid">
+                <!-- Left Column: Final Player Stats -->
+                <div class="stats-grid">
+                    <div class="stat-row">
+                        <span class="stat-label">Agent Name</span>
+                        <span class="stat-val" id="res-player-name">Agent</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Symbols Found</span>
+                        <span class="stat-val" id="res-found">8 / 8</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Scanning Accuracy</span>
+                        <span class="stat-val" id="res-accuracy">100%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Time Taken</span>
+                        <span class="stat-val" id="res-time">32.5 s</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-row total-score-row">
+                        <span class="stat-label">FINAL SCORE</span>
+                        <span class="stat-val highlight" id="res-score">1850</span>
+                    </div>
+                    <div id="sync-status" class="sync-status-text">> Syncing score with Firebase...</div>
+                </div>
+
+                <!-- Right Column: Top Scores Leaderboard -->
+                <div class="leaderboard-box">
+                    <h3 class="leaderboard-title">TOP AGENTS LEADERBOARD</h3>
+                    <div class="leaderboard-table-container">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>NAME</th>
+                                    <th>SCORE</th>
+                                    <th>ACC.</th>
+                                    <th>TIME</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-rows">
+                                <tr><td colspan="5" class="lb-loading">Loading top scores...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-actions">
+                <button id="btn-restart" class="btn-primary">PLAY AGAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main entry point -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
