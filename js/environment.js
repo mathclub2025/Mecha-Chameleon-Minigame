@@ -1,6 +1,9 @@
 // 3D Spacious Classroom Environment Generator
 import * as THREE from 'three';
-import { CONFIG } from './config.js';
+// Static reusable objects for zero-GC collision checking
+const _playerBox = new THREE.Box3();
+const _minVec = new THREE.Vector3();
+const _maxVec = new THREE.Vector3();
 
 export class Environment {
     constructor(scene) {
@@ -2828,19 +2831,15 @@ export class Environment {
         }
     }
 
-    // Helper: Collision detection check for the player
+    // Helper: Collision detection check for the player (Zero GC allocations for butter-smooth movement)
     checkCollision(newPosition, radius) {
-        // Compute player's feet height dynamically (eye level minus player height)
         const feetY = newPosition.y - CONFIG.playerHeight;
-        
-        // Player bounding box at feet-relative body level (Y: feetY + 0.4 to feetY + 1.7)
-        const playerBox = new THREE.Box3(
-            new THREE.Vector3(newPosition.x - radius, feetY + 0.4, newPosition.z - radius),
-            new THREE.Vector3(newPosition.x + radius, feetY + 1.7, newPosition.z + radius)
-        );
+        _minVec.set(newPosition.x - radius, feetY + 0.4, newPosition.z - radius);
+        _maxVec.set(newPosition.x + radius, feetY + 1.7, newPosition.z + radius);
+        _playerBox.set(_minVec, _maxVec);
 
         for (let i = 0; i < this.colliders.length; i++) {
-            if (playerBox.intersectsBox(this.colliders[i])) {
+            if (_playerBox.intersectsBox(this.colliders[i])) {
                 return true; // Collision detected
             }
         }

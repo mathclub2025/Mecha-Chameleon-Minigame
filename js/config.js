@@ -16,7 +16,7 @@ export const CONFIG = {
     playerRunMultiplier: 1.5,
     playerHeight: 1.8,
     playerRadius: 0.22,
-    interactionDistance: 8.5,
+    interactionDistance: 45.0,
     fov: 75,
 
     // Large Spacious Classroom

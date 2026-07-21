@@ -46,7 +46,7 @@ class GameApp {
             powerPreference: "high-performance"
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit to 2 for perf
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25)); // Cap at 1.25 for 60FPS fluid reactivity
         
         // Shadow mappings (Optimized PCF for butter-smooth frame rates)
         this.renderer.shadowMap.enabled = true;
@@ -194,6 +194,11 @@ class StartScreenPreview {
 
         const animate = () => {
             requestAnimationFrame(animate);
+            // Pause side preview rendering when start screen is hidden to save GPU resources for active gameplay
+            const startScreen = document.getElementById('screen-start');
+            if (startScreen && startScreen.classList.contains('hidden')) {
+                return;
+            }
             models.forEach(model => {
                 model.rotation.y += 0.018;
             });

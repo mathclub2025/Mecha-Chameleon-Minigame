@@ -280,7 +280,7 @@ export class Player {
     interact() {
         if (window.currentGameManager && window.currentGameManager.state !== 'PLAYING') return;
         if (this.clickCooldown > 0) return;
-        this.clickCooldown = 0.3; // 300ms cooldown between clicks
+        this.clickCooldown = 0.08; // 80ms click cooldown for ultra-fast, responsive clicks
 
         // Play scanner sound
         audioManager.playScanClick();
