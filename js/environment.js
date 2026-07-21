@@ -1,5 +1,7 @@
 // 3D Spacious Classroom Environment Generator
 import * as THREE from 'three';
+import { CONFIG } from './config.js';
+
 // Static reusable objects for zero-GC collision checking
 const _playerBox = new THREE.Box3();
 const _minVec = new THREE.Vector3();

@@ -59,19 +59,13 @@ export class UIManager {
         }
     }
 
-    // Read and validate player inputs (Name required, Number optional)
+    // Read player inputs (Name optional, defaults to "Agent")
     getPlayerInputs() {
         const name = this.inputName ? this.inputName.value.trim() : "";
         const number = this.inputNumber ? this.inputNumber.value.trim() : "";
 
-        if (!name) {
-            if (this.formError) this.formError.classList.remove('hidden');
-            if (this.inputName) this.inputName.focus();
-            return null;
-        }
-
         if (this.formError) this.formError.classList.add('hidden');
-        return { name, number };
+        return { name: name || "Agent", number: number };
     }
 
     // Screen Transitions (Fade wrapper using CSS classes)

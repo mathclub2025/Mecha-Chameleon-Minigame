@@ -55,14 +55,14 @@ export class GameManager {
         this.state = 'INTRO';
         this.ui.showScreen('start');
         
-        // Setup start buttons (Validate player inputs before initializing)
+        // Setup start buttons (Start simulation unconditionally on click)
         document.getElementById('btn-start').addEventListener('click', () => {
             const playerDetails = this.ui.getPlayerInputs();
-            if (!playerDetails) return; // Name is required!
+            this.playerName = (playerDetails && playerDetails.name) ? playerDetails.name : "Agent";
+            this.playerNumber = (playerDetails && playerDetails.number) ? playerDetails.number : "";
 
-            this.playerName = playerDetails.name;
-            this.playerNumber = playerDetails.number;
-
+            // Initialize audio and lock pointer immediately inside click gesture
+            audioManager.init();
             this.player.lock();
             this.startLoading();
         });
