@@ -30,6 +30,7 @@ export class UIManager {
         this.resTime = document.getElementById('res-time');
         this.resScore = document.getElementById('res-score');
         this.syncStatus = document.getElementById('sync-status');
+        this.localSyncStatus = document.getElementById('local-sync-status');
         this.leaderboardRows = document.getElementById('leaderboard-rows');
         
         // Modal Leaderboard elements
@@ -192,16 +193,28 @@ export class UIManager {
         this.resScore.textContent = finalScore;
 
         if (this.syncStatus) {
-            this.syncStatus.textContent = "> Syncing score with Firebase...";
+            this.syncStatus.textContent = "> Firebase Connection: Syncing score...";
             this.syncStatus.style.color = "var(--neon-gold)";
+        }
+        if (this.localSyncStatus) {
+            this.localSyncStatus.textContent = "> Local Backup: Saving offline JSON...";
+            this.localSyncStatus.style.color = "var(--neon-gold)";
         }
     }
 
     // Update Firebase Sync Status Indicator
     setSyncStatus(message, isSuccess = true) {
         if (this.syncStatus) {
-            this.syncStatus.textContent = `> ${message}`;
+            this.syncStatus.textContent = `> Firebase Connection: ${message}`;
             this.syncStatus.style.color = isSuccess ? "var(--neon-green)" : "var(--neon-red)";
+        }
+    }
+
+    // Update Local Disk Sync Status Indicator
+    setLocalSyncStatus(message, isSuccess = true) {
+        if (this.localSyncStatus) {
+            this.localSyncStatus.textContent = `> Local Backup: ${message}`;
+            this.localSyncStatus.style.color = isSuccess ? "var(--neon-green)" : "var(--neon-red)";
         }
     }
 

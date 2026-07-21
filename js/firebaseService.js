@@ -21,7 +21,7 @@ const LOCAL_STORAGE_KEY = 'mecha_chameleon_leaderboard';
 const LOCAL_ALL_RECORDS_KEY = 'mecha_chameleon_all_records';
 
 // Helper: Timeout race wrapper so Firebase network delay never hangs the game UI
-function withTimeout(promise, ms = 2500) {
+function withTimeout(promise, ms = 12000) {
     return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error(`Firebase request timed out after ${ms}ms`)), ms))
@@ -57,14 +57,14 @@ export async function saveScore({ name, number = "", score, found, total = 8, ac
     // 1. ALWAYS save to Local Storage (both top 50 cache & uncapped full log)
     saveToLocalStorage(record);
 
-    // 2. Save to Firestore with 2.5s timeout race
+    // 2. Save to Firestore with 12s timeout race
     if (isFirebaseInitialized && db) {
         try {
             const savePromise = addDoc(collection(db, "leaderboard"), {
                 ...record,
                 createdAt: serverTimestamp()
             });
-            const docRef = await withTimeout(savePromise, 2500);
+            const docRef = await withTimeout(savePromise, 12000);
             console.log("Score saved to Firestore with ID:", docRef.id);
             return { success: true, id: docRef.id, isLocal: false, record };
         } catch (error) {
@@ -84,16 +84,18 @@ export async function getTopScores(limitCount = 10) {
 }
 
 /**
- * Fetch Leaderboard Data with Player Rank calculation
+ * Fetch Leaderboard Data with Player Rank calculation and Offline support (caching + disk JSON merging)
  */
 export async function getLeaderboardData({ limitCount = 10, currentPlayerName = null, currentScore = null, currentTimestamp = null } = {}) {
     let allScores = [];
+    let querySucceeded = false;
 
+    // 1. Fetch top scores from Firebase Firestore
     if (isFirebaseInitialized && db) {
         try {
             const leaderboardRef = collection(db, "leaderboard");
             const q = query(leaderboardRef, orderBy("score", "desc"), limit(50));
-            const querySnapshot = await withTimeout(getDocs(q), 2500);
+            const querySnapshot = await withTimeout(getDocs(q), 12000);
             
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
@@ -107,13 +109,62 @@ export async function getLeaderboardData({ limitCount = 10, currentPlayerName = 
                     timestamp: data.timestamp || ""
                 });
             });
+            
+            // Cache successful Firestore query in localStorage
+            localStorage.setItem('firebase_leaderboard_cache', JSON.stringify(allScores));
+            querySucceeded = true;
         } catch (error) {
-            console.warn("Firestore query failed, using local storage:", error.message);
+            console.warn("Firestore query failed, using local cache fallback:", error.message);
+        }
+    }
+
+    // 2. Fallback to cached leaderboard if query failed/offline
+    if (!querySucceeded) {
+        try {
+            const cached = localStorage.getItem('firebase_leaderboard_cache');
+            if (cached) {
+                allScores = JSON.parse(cached);
+            }
+        } catch (e) {
+            console.warn("Error parsing leaderboard cache:", e);
         }
     }
 
     if (allScores.length === 0) {
         allScores = getFromLocalStorage(50);
+    }
+
+    // 3. Retrieve local offline JSON files from disk and merge them to update the leaderboard
+    try {
+        const response = await fetch('/api/get-offline-results');
+        if (response.ok) {
+            const offlineFiles = await response.json();
+            offlineFiles.forEach(item => {
+                const data = item.data;
+                const accuracyNum = data.accuracy ? Number(data.accuracy.replace('%', '')) : 100;
+                
+                // Add local unsynced game if not already inside allScores
+                const exists = allScores.some(existing => 
+                    existing.name === data.playerName && 
+                    existing.score === Number(data.score) && 
+                    existing.timestamp === data.timestamp
+                );
+                
+                if (!exists) {
+                    allScores.push({
+                        id: 'local_' + item.filename,
+                        name: data.playerName || "Anonymous",
+                        score: Number(data.score || 0),
+                        accuracy: accuracyNum,
+                        timeTaken: Number(data.timeTaken || 0),
+                        found: data.found || 0,
+                        timestamp: data.timestamp || ""
+                    });
+                }
+            });
+        }
+    } catch (err) {
+        console.warn("Could not retrieve offline JSON files for leaderboard overlay:", err.message);
     }
 
     if (!allScores || allScores.length === 0) {
@@ -174,6 +225,74 @@ export async function getLeaderboardData({ limitCount = 10, currentPlayerName = 
         isCurrentPlayer: true,
         isOutsideTop10: true
     }];
+}
+
+/**
+ * Check connectivity and synchronize all local offline JSON files to Firebase, deleting them locally on success.
+ */
+export async function syncOfflineResultsToFirebase() {
+    if (!isFirebaseInitialized || !db) {
+        console.log("[Sync Service] Firebase not initialized. Skipping offline synchronization.");
+        return false;
+    }
+
+    try {
+        const response = await fetch('/api/get-offline-results');
+        if (!response.ok) return false;
+
+        const offlineRecords = await response.json();
+        if (offlineRecords.length === 0) {
+            console.log("[Sync Service] All local JSON records are synchronized.");
+            return true;
+        }
+
+        console.log(`[Sync Service] Found ${offlineRecords.length} offline records to sync.`);
+        let syncedCount = 0;
+
+        for (const item of offlineRecords) {
+            const data = item.data;
+            const accuracyNum = data.accuracy ? Number(data.accuracy.replace('%', '')) : 100;
+            
+            try {
+                // Upload to Firebase Firestore
+                const record = {
+                    name: data.playerName,
+                    number: data.playerNumber || "",
+                    score: Number(data.score),
+                    found: Number(data.found),
+                    total: Number(data.total),
+                    accuracy: accuracyNum,
+                    timeRemaining: Number(data.timeRemaining || 0),
+                    timeTaken: Number(data.timeTaken || 0),
+                    timestamp: data.timestamp || new Date().toISOString()
+                };
+
+                await addDoc(collection(db, "leaderboard"), {
+                    ...record,
+                    createdAt: serverTimestamp()
+                });
+
+                // Delete local JSON file from disk after successful Firebase write
+                const deleteRes = await fetch('/api/delete-offline-result', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: item.filename })
+                });
+
+                if (deleteRes.ok) {
+                    syncedCount++;
+                }
+            } catch (err) {
+                console.error(`[Sync Service] Error syncing record ${item.filename}:`, err);
+            }
+        }
+
+        console.log(`[Sync Service] Successfully synchronized and cleaned up ${syncedCount} offline JSON records.`);
+        return true;
+    } catch (error) {
+        console.error("[Sync Service] Sync error:", error);
+        return false;
+    }
 }
 
 /**

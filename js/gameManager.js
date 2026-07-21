@@ -4,7 +4,7 @@ import { CONFIG, SPAWN_POINTS, MATHEMATICAL_SAGES } from './config.js';
 import { CharacterFactory } from './characters.js';
 import { CamouflageManager } from './camouflage.js';
 import { audioManager } from './audio.js';
-import { saveScore, getTopScores, getLeaderboardData, saveLocalResultJSON } from './firebaseService.js';
+import { saveScore, getTopScores, getLeaderboardData, saveLocalResultJSON, syncOfflineResultsToFirebase } from './firebaseService.js';
 
 export class GameManager {
     constructor(scene, camera, player, ui, environment) {
@@ -121,6 +121,11 @@ export class GameManager {
         
         // Reset old meshes
         this.cleanupGameMeshes();
+        
+        // Synchronize offline JSON results to Firebase in the background when the next game starts
+        syncOfflineResultsToFirebase().catch(err => {
+            console.warn("Background offline sync failed:", err);
+        });
 
         let progress = 0;
         const interval = setInterval(() => {
@@ -511,13 +516,13 @@ export class GameManager {
             if (saveRes.record) savedRecordTimestamp = saveRes.record.timestamp;
 
             if (saveRes.isLocal) {
-                this.ui.setSyncStatus("Saved score locally (Offline/Fallback mode)", true);
+                this.ui.setSyncStatus("Offline / Unsuccessful (Saved to local cache)", false);
             } else {
-                this.ui.setSyncStatus("Score saved to Firebase successfully!", true);
+                this.ui.setSyncStatus("Connected | Saved Successfully!", true);
             }
 
-            // Always save JSON file directly to local 'results/' folder on disk
-            saveLocalResultJSON({
+            // Always await saving JSON file directly to local 'results/' folder on disk
+            const isLocalSaved = await saveLocalResultJSON({
                 name: this.playerName,
                 number: this.playerNumber,
                 score: this.score,
@@ -528,9 +533,16 @@ export class GameManager {
                 timeRemaining: this.timeRemaining,
                 timestamp: savedRecordTimestamp || new Date().toISOString()
             });
+
+            if (isLocalSaved) {
+                this.ui.setLocalSyncStatus("Saved successfully to results/", true);
+            } else {
+                this.ui.setLocalSyncStatus("Failed to save JSON on disk", false);
+            }
         } catch (err) {
             console.error("Score save error:", err);
-            this.ui.setSyncStatus("Error saving to Firebase", false);
+            this.ui.setSyncStatus("Unsuccessful (Error occurred)", false);
+            this.ui.setLocalSyncStatus("Failed", false);
         }
 
         // Fetch Leaderboard Data with Player Rank calculation (Top 10 + 11th row if player ranked 11+)
