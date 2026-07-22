@@ -5,11 +5,9 @@ import ramanujanImg from '../ramanujan.jpg';
 export class CharacterFactory {
 
     // Helper: Build a curvy 3D mathematical symbol geometry using cylinders and spheres
-    static createMathSymbol(symbolName, material) {
+    static createMathSymbol(symbolName, material, radius = 0.046) {
         const group = new THREE.Group();
         group.name = "symbol-mesh";
-
-        const radius = 0.046; // Perfect thickness: clearly visible while blending beautifully
 
         // Helper: Create a smooth cylinder strut with rounded spherical caps at endpoints
         const drawSmoothStrut = (x1, y1, z1, x2, y2, z2) => {
@@ -342,12 +340,23 @@ export class CharacterFactory {
             metalness: 0.5
         });
 
-        // Generate the curvy math symbol mesh
-        const symbolMesh = this.createMathSymbol(symbolName, camoMat);
+        // 1. Generate local ambient occlusion contact shadow (slightly thicker, low opacity, centered backdrop)
+        const shadowMat = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            transparent: true,
+            opacity: 0.35, // Soft, natural occlusion shadow
+            depthWrite: false
+        });
+        const shadowMesh = this.createMathSymbol(symbolName, shadowMat, 0.062); // thicker radius (0.062)
+        shadowMesh.position.set(0.004, -0.154, -0.008); // centered directly behind with a tiny natural offset
+        group.add(shadowMesh);
+
+        // 2. Generate the curvy math symbol mesh
+        const symbolMesh = this.createMathSymbol(symbolName, camoMat, 0.046); // standard radius (0.046)
         symbolMesh.position.y = -0.15; // Shift down flush so the bottom rests on surface!
         group.add(symbolMesh);
 
-        // Gather all meshes for material mapping
+        // Gather all meshes for material mapping (excludes the drop shadow from camo recoloring)
         const blendParts = [];
         symbolMesh.traverse(child => {
             if (child.isMesh) {

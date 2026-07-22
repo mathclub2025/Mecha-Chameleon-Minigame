@@ -30,6 +30,9 @@ export class GameManager {
         // Click tracking for accuracy
         this.correctClicks = 0;
         this.wrongClicks = 0;
+        
+        // Prevent duplicate results screen trigger / Firebase saves
+        this.resultsShown = false;
 
         // Transition animation variables
         this.endRevealTimer = 0;
@@ -77,6 +80,22 @@ export class GameManager {
             this.startZoomOutTransition();
         });
 
+        // Quit to main menu from pause screen
+        const btnPauseQuit = document.getElementById('btn-pause-quit');
+        if (btnPauseQuit) {
+            btnPauseQuit.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent locking pointer lock again from the window/canvas click handler
+                this.player.unlock();
+                this.cleanupGameMeshes();
+                this.ui.showScreen('start');
+                this.state = 'INTRO';
+                
+                // Hide pause overlay
+                const lockPrompt = document.getElementById('pointer-lock-prompt');
+                if (lockPrompt) lockPrompt.classList.add('hidden');
+            });
+        }
+
         // Main Menu Leaderboard Modal handlers
         const btnOpenLb = document.getElementById('btn-open-leaderboard');
         const btnCloseLb = document.getElementById('btn-close-leaderboard');
@@ -116,6 +135,7 @@ export class GameManager {
     // Enter simulated loading phase
     startLoading() {
         this.state = 'LOADING';
+        this.resultsShown = false; // Reset resultsShown guard flag
         this.ui.clearConsole();
         this.ui.showScreen('loading');
         
@@ -473,6 +493,8 @@ export class GameManager {
 
     // Transition to Results state dashboard & sync score with Firebase Leaderboard
     async showResults() {
+        if (this.resultsShown) return;
+        this.resultsShown = true;
         this.state = 'RESULTS';
         
         // Calculate accuracy and time taken
