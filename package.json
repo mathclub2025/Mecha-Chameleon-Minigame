@@ -4,8 +4,8 @@
   "description": "Mecha Chameleon: Find Them - First Person 3D observation minigame for Maths Club Expo 2026",
   "main": "index.html",
   "scripts": {
-    "dev": "node init && vite",
-    "build": "node init && vite build",
+    "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
